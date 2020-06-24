@@ -1,0 +1,7 @@
+body,
+html,
+#root,
+.viewer,
+canvas {
+  height: 100%;
+}
