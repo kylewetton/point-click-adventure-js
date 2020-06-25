@@ -32,9 +32,22 @@ const World = ({ environment, player, animationClips, mixer }) => {
   const canvasContainer = useRef();
   const [playerPos, setPlayerPos] = useState(new THREE.Vector3(0, 0, 0));
 
+  /**
+   * Did mount
+   */
+
   useEffect(() => {
     createWorld(canvasContainer);
+    changeAnimation("idle", "idle");
+    resizeWindow();
+    window.addEventListener("resize", () => resizeWindow());
+    const { width, height } = canvasContainer.current.getBoundingClientRect();
+    renderer.setSize(width, height);
   }, []);
+
+  /**
+   * Control tweening of characters position and animation changing to walk/idle
+   */
 
   useEffect(() => {
     if (player) {
@@ -67,19 +80,6 @@ const World = ({ environment, player, animationClips, mixer }) => {
       });
     }
   }, [playerPos]);
-
-  /**
-   * We hand set the size of the renderer intitially, the state is then used
-   * during window resize
-   */
-
-  useEffect(() => {
-    changeAnimation("idle", "idle");
-    resizeWindow();
-    window.addEventListener("resize", () => resizeWindow());
-    const { width, height } = canvasContainer.current.getBoundingClientRect();
-    renderer.setSize(width, height);
-  }, []);
 
   const resizeWindow = () => {
     const { width, height } = getSize(canvasContainer.current);
@@ -132,13 +132,14 @@ const World = ({ environment, player, animationClips, mixer }) => {
       if (mixer) {
         mixer.update(delta);
       }
-
       controls.update();
-
       requestAnimationFrame(animate);
       camera.updateProjectionMatrix();
       TWEEN.update();
 
+      /**
+       * Smooth turning of player
+       */
       if (!player.quaternion.equals(targetQuaternion)) {
         var step = rotSpeed * delta;
         player.quaternion.rotateTowards(targetQuaternion, step);
