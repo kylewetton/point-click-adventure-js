@@ -47,6 +47,7 @@ export const handleLoadEnvironment = (settings, loadEnvironment) => {
     const materials = textures.map((entry) => {
       const { label, path, customWrapping } = entry;
       const skin = new THREE.TextureLoader().load(path);
+      skin.encoding = THREE.sRGBEncoding;
       if (customWrapping) {
         skin.wrapS = THREE.RepeatWrapping;
         skin.wrapT = THREE.RepeatWrapping;
@@ -90,6 +91,7 @@ export const handleLoadPlayer = (
   loader.load(path, (gltf) => {
     const model = gltf.scene;
     const skin = new THREE.TextureLoader().load(textures[0].path);
+    skin.encoding = THREE.sRGBEncoding;
 
     skin.flipY = false;
 

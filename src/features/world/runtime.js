@@ -11,7 +11,7 @@ const themeSettings = {
       id: "hemi",
       sky: 0xe6f5ff,
       ground: 0xdbd0af,
-      intensity: 1,
+      intensity: 1.2,
       position: { x: 0, y: 50, z: 0 },
     },
     {
@@ -80,6 +80,8 @@ export const renderer = new THREE.WebGLRenderer({
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.sortObjects = true;
+renderer.gammaOutput = true;
+renderer.gammaFactor = 2.2;
 
 export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
