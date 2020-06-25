@@ -10,6 +10,8 @@ function createConvexRegionHelper(navMesh) {
   const geometry = new THREE.BufferGeometry();
   const material = new THREE.MeshBasicMaterial({
     vertexColors: THREE.VertexColors,
+    transparent: true,
+    opacity: 0,
   });
 
   const mesh = new THREE.Mesh(geometry, material);

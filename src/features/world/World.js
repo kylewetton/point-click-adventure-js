@@ -11,15 +11,17 @@ import {
   clock,
   raycaster,
 } from "./runtime";
-import TWEEN from "@tweenjs/tween.js";
-import {
-  executeCrossFade,
-  generateRotationTarget,
-  rotSpeed,
-  targetQuaternion,
-  getSize,
-} from "../../app/utils";
+import { executeCrossFade, getSize } from "../../app/utils";
 import { createConvexRegionHelper } from "./NavMeshHelper.js";
+import { playerSettings } from "../../app/playerControllerConfig";
+const {
+  animCrossFadeSpeed,
+  maxSpeed,
+  maxForce,
+  speedToForceStop,
+  speedToStartWalking,
+  arriveTolerance,
+} = playerSettings;
 
 let doClickOnRelease = false;
 
@@ -28,7 +30,7 @@ let doClickOnRelease = false;
  * NAVMESH TO REFACTOR */
 
 let entityManager, time, vehicle, navMesh, navMeshGroup;
-let pathMaterial, pathHelper, graphHelper;
+let pathMaterial, pathHelper;
 const loader = new YUKA.NavMeshLoader();
 
 /** END NAVMESH TO REFACTOR
@@ -44,7 +46,8 @@ const mapState = (state) => ({
 
 const World = ({ environment, player, animationClips, mixer }) => {
   const canvasContainer = useRef();
-  const [playerPos, setPlayerPos] = useState(new THREE.Vector3(0, 0, 0));
+  const playerSpeed = useRef(0);
+  const [playerIsMoving, setplayerIsMoving] = useState(false);
 
   /**
    * Did mount
@@ -52,54 +55,25 @@ const World = ({ environment, player, animationClips, mixer }) => {
 
   useEffect(() => {
     createWorld(canvasContainer);
-    changeAnimation("idle", "idle");
     resizeWindow();
     window.addEventListener("resize", () => resizeWindow());
     const { width, height } = canvasContainer.current.getBoundingClientRect();
     renderer.setSize(width, height);
   }, []);
 
-  /**
-   * Control tweening of characters position and animation changing to walk/idle
-   */
-
-  // useEffect(() => {
-  //   if (player) {
-  //     const { x, y, z } = playerPos;
-
-  //     const distance = playerPos.distanceTo(player.position);
-
-  //     changeAnimation("idle", "happy_walk");
-  //     var position = {
-  //       x: player.position.x,
-  //       y: player.position.y,
-  //       z: player.position.z,
-  //     };
-  //     var target = { x, y, z };
-
-  //     TWEEN.removeAll();
-
-  //     // Movement
-
-  //     const move = new TWEEN.Tween(position).to(target, 650 * distance).start();
-
-  //     generateRotationTarget(player, new THREE.Vector3(x, y, z));
-
-  //     move.onUpdate(function () {
-  //       player.position.x = position.x;
-  //       player.position.z = position.z;
-  //     });
-  //     move.onComplete(() => {
-  //       changeAnimation("happy_walk", "idle");
-  //     });
-  //   }
-  // }, [playerPos]);
-
   const resizeWindow = () => {
     const { width, height } = getSize(canvasContainer.current);
     renderer.setSize(width, height);
     camera.aspect = width / height;
   };
+
+  useEffect(() => {
+    if (playerIsMoving) {
+      changeAnimation("idle", "happy_walk");
+    } else {
+      changeAnimation("happy_walk", "idle");
+    }
+  }, [playerIsMoving]);
 
   /**
    *
@@ -109,7 +83,7 @@ const World = ({ environment, player, animationClips, mixer }) => {
   const changeAnimation = (fromAnim, toAnim) => {
     const from = animationClips.find((anim) => anim._clip.name === fromAnim);
     const to = animationClips.find((anim) => anim._clip.name === toAnim);
-    executeCrossFade(from, to, 0.2);
+    executeCrossFade(from, to, animCrossFadeSpeed);
   };
 
   const handleMouseClick = (event) => {
@@ -132,25 +106,6 @@ const World = ({ environment, player, animationClips, mixer }) => {
     /** END NAVMESH TO REFACTOR
      * ########################
      */
-
-    /**
-     * OLD METHOD
-     */
-    // event.preventDefault();
-    // const x = (event.clientX / window.innerWidth) * 2 - 1;
-    // const y = -(event.clientY / window.innerHeight) * 2 + 1;
-    // const pos = new THREE.Vector2(x, y);
-    // raycaster.setFromCamera(pos, camera);
-    // const intersects = raycaster.intersectObjects(scene.children, true);
-    // if (intersects[0]) {
-    //   const floor = intersects.filter(
-    //     (mesh) => mesh.object.name === "playarea"
-    //   );
-    //   if (floor[0]) {
-    //     const { x, y, z } = floor[0].point;
-    //     setPlayerPos(new THREE.Vector3(x, y, z));
-    //   }
-    // }
   };
 
   /**
@@ -195,7 +150,7 @@ const World = ({ environment, player, animationClips, mixer }) => {
     pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
     pathHelper = new THREE.Line(new THREE.BufferGeometry(), pathMaterial);
     pathHelper.visible = false;
-    scene.add(pathHelper);
+    //  scene.add(pathHelper);
 
     player.matrixAutoUpdate = false;
     scene.add(player);
@@ -212,13 +167,17 @@ const World = ({ environment, player, animationClips, mixer }) => {
       time = new YUKA.Time();
 
       vehicle = new YUKA.Vehicle();
+
       vehicle.navMesh = navMesh;
-      vehicle.maxSpeed = 1.5;
-      vehicle.maxForce = 10;
+      vehicle.maxSpeed = maxSpeed;
+      vehicle.maxForce = maxForce;
       vehicle.setRenderComponent(player, sync);
 
       const followPathBehavior = new YUKA.FollowPathBehavior();
       followPathBehavior.active = false;
+      followPathBehavior._arrive.tolerance = arriveTolerance;
+      followPathBehavior._arrive.deceleration = 0;
+
       vehicle.steering.add(followPathBehavior);
 
       entityManager.add(vehicle);
@@ -230,41 +189,43 @@ const World = ({ environment, player, animationClips, mixer }) => {
      */
 
     parent.appendChild(renderer.domElement);
-
     lights.forEach((light) => scene.add(light));
-
     scene.add(environment);
 
-    const animate = () => {
-      var delta = clock.getDelta();
-      const playerSpeed = vehicle.getSpeedSquared();
+    let isMoving = false;
 
-      if (mixer) {
-        mixer.update(delta);
+    const animate = () => {
+      const delta = clock.getDelta();
+
+      if (vehicle.maxSpeed === 0) {
+        vehicle.maxSpeed = maxSpeed;
       }
+      playerSpeed.current = vehicle.getSpeedSquared();
+
+      if (playerSpeed.current > speedToStartWalking) {
+        if (playerSpeed.current > speedToForceStop) {
+          isMoving = true;
+        }
+        setplayerIsMoving(true);
+      } else {
+        setplayerIsMoving(false);
+      }
+
+      // Force stop on dime
+      if (isMoving === true && playerSpeed.current < speedToForceStop) {
+        vehicle.maxSpeed = 0;
+        isMoving = false;
+      }
+
+      mixer.update(delta);
       controls.update();
       requestAnimationFrame(animate);
-
-      if (playerSpeed < 0.01) {
-        changeAnimation("idle", "happy_walk", true);
-      } else {
-        changeAnimation("happy_walk", "idle", false);
-      }
 
       const dta = time.update().getDelta();
 
       entityManager.update(dta);
 
       camera.updateProjectionMatrix();
-      TWEEN.update();
-
-      /**
-       * Smooth turning of player
-       */
-      // if (!player.quaternion.equals(targetQuaternion)) {
-      //   var step = rotSpeed * delta;
-      //   player.quaternion.rotateTowards(targetQuaternion, step);
-      // }
 
       renderer.render(scene, camera);
     };

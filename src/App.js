@@ -24,6 +24,7 @@ function App({ loaded, loadEnvironment, loadPlayer, setPlayerMaterial }) {
   }, []);
 
   return loaded ? <World /> : <Menu />;
+  // return <Menu />;
 }
 
 export default connect(mapState, mapDispatch)(App);
