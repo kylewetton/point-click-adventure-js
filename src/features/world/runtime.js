@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm//controls/OrbitControls";
 import Theme from "./Theme";
 import { Math as ThreeMath } from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const themeSettings = {
   background: 0x32383c,
@@ -47,8 +48,8 @@ export const camera = new THREE.PerspectiveCamera(
   1000
 );
 
-camera.position.z = 30;
-camera.position.y = 15;
+camera.position.z = 45;
+camera.position.y = 30;
 camera.position.x = -15;
 
 export const defaultMaterial = new THREE.MeshPhongMaterial({
@@ -89,3 +90,7 @@ controls.minPolarAngle = ThreeMath.degToRad(60);
 controls.dampingFactor = 0.05;
 controls.target = new THREE.Vector3(0, 0, 0);
 controls.saveState();
+
+export const clock = new THREE.Clock();
+export const loader = new GLTFLoader();
+export const raycaster = new THREE.Raycaster();

@@ -32,6 +32,7 @@ export default class Theme {
 
     directional.forEach((light) => {
       const { x, y, z } = light.position;
+      const d = 30;
       const directionalLight = new THREE.DirectionalLight(
         light.color,
         light.intensity
@@ -39,6 +40,16 @@ export default class Theme {
       directionalLight.position.set(x, y, z);
       directionalLight.castShadow = light.shadows;
       directionalLight.shadow.mapSize = new THREE.Vector2(2048, 2048);
+      //Set up shadow properties for the light
+      directionalLight.shadow.mapSize.width = 1024; // default
+      directionalLight.shadow.mapSize.height = 1024; // default
+      directionalLight.shadow.camera.near = 0.5; // default
+      directionalLight.shadow.camera.far = 2500; // default
+      directionalLight.shadow.camera.left = d * -1;
+      directionalLight.shadow.camera.right = d;
+      directionalLight.shadow.camera.top = d;
+      directionalLight.shadow.camera.bottom = d * -1;
+
       this.lights.push(directionalLight);
     });
   }

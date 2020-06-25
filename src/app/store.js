@@ -3,6 +3,7 @@ import rootReducer from "../features/reducer";
 
 export default configureStore({
   reducer: {
-    counter: rootReducer,
+    main: rootReducer,
   },
+  middleware: [],
 });
